@@ -1,21 +1,23 @@
 #include "MCC.h"
 #include <Arduino.h>
 
-MCC::MCC(int avancer, int reculer) : pinAvancer(avancer), pinReculer(reculer){
+MCC::MCC(int avancer, int reculer, int pwm) : pinAvancer(avancer), pinReculer(reculer), pinPWM(pwm) {
   pinMode(pinAvancer, OUTPUT);
   pinMode(pinReculer, OUTPUT);
 
-  analogWrite(pinAvancer, 0);
-  analogWrite(pinReculer, 0);
+  digitalWrite(pinAvancer, LOW);
+  digitalWrite(pinReculer, LOW);
 }
 
 void MCC::bouger(int vitesse){
   if(vitesse>0){
-    analogWrite(pinAvancer, vitesse);
-    analogWrite(pinReculer, 0);
+    digitalWrite(pinReculer, LOW);
+    digitalWrite(pinAvancer, HIGH);
+    analogWrite(pinPWM, vitesse);
   }
   else{
-    analogWrite(pinAvancer, 0);
-    analogWrite(pinReculer, -vitesse);
+    digitalWrite(pinReculer, HIGH);
+    digitalWrite(pinAvancer, LOW);
+    analogWrite(pinPWM, -vitesse);
   }
 }

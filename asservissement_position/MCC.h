@@ -3,12 +3,13 @@
 
 class MCC{    
   public :
-    MCC(int avancer, int reculer);
+    MCC(int avancer, int reculer, int pwm);
     void bouger(int vitesse);
 
   private :
     int pinReculer;
     int pinAvancer;
+    int pinPWM;
 };
 
 #endif
