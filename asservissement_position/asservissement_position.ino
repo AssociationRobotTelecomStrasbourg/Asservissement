@@ -3,7 +3,7 @@
 #include "MCC.h"
 
 /*Interruption*/
-Encoder monEnc(2, 3);
+Encoder monEnc(2, 4);
 //Compteurs de pas des moteurs
 double position = 0;
 
