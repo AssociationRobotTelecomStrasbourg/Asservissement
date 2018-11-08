@@ -71,5 +71,5 @@ void loop() {
   m.bouger((int)commande);
 
   //Affichage liaison série
-  Serial.println(String(millis())+" "+String(millis())+" "+String(vitesse));
+  Serial.println(String(millis()) + " " + String(millis()) + " " + String(vitesse));
 }
