@@ -21,7 +21,7 @@ int echantillonnage = 1; //l'échantillonnage est l'intervalle de temps entre ch
 //Réglage des coefficient des PID
 const double kp = 90;
 const double ki = 0;
-const double kd = 3;
+const double kd = 2;
 
 PID monPID1(&position1, &commande1, &consigne1, kp, ki, kd, DIRECT);
 PID monPID2(&position2, &commande2, &consigne2, kp, ki, kd, DIRECT);
@@ -54,5 +54,5 @@ void loop() {
   m2.bouger((int)commande2);
 
   //Affichage liaison série
-  //Serial.println(String(position) + " " + String(commande) + " " + String(consigne));
+  //Serial.println(String(position) + " 0 3266");
 }

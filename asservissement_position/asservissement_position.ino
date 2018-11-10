@@ -18,9 +18,9 @@ double commande; //la commande est le pwm envoyé sur le moteur
 int echantillonnage = 1; //l'échantillonnage est l'intervalle de temps entre chaque calcul de la commande, exprimé en milliseconde
 
 //Réglage des coefficient des PID
-const double kp = 90;
+const double kp = 1;
 const double ki = 0;
-const double kd = 2;
+const double kd = 0;
 
 PID monPID(&position, &commande, &consigne, kp, ki, kd, DIRECT);
 
