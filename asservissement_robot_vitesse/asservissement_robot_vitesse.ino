@@ -32,17 +32,17 @@ PID monPID1(&vitesse1, &commande1, &consigne1, kp, ki, kd, DIRECT);
 PID monPID2(&vitesse2, &commande2, &consigne2, kp, ki, kd, DIRECT);
 
 void getVitesse1() {
-  vitesse1 -= vitesses1[i1]/3;
+  vitesse1 -= vitesses1[i1]/N_FILTRE;
   vitesses1[i1] = (position1 - dernierePosition1) / deltaTemps * 1000 / tour;
-  vitesse1 += vitesses1[i1]/3;
+  vitesse1 += vitesses1[i1]/N_FILTRE;
   if (++i1 == N_FILTRE) i1 = 0;
   dernierePosition1 = position1;
 }
 
 void getVitesse2() {
-  vitesse2 -= vitesses2[i2]/3;
+  vitesse2 -= vitesses2[i2]/N_FILTRE;
   vitesses2[i2] = (position2 - dernierePosition2) / deltaTemps * 1000 / tour;
-  vitesse2 += vitesses2[i2]/3;
+  vitesse2 += vitesses2[i2]/N_FILTRE;
   if (++i2 == N_FILTRE) i2 = 0;
   dernierePosition2 = position2;
 }
