@@ -10,8 +10,10 @@ double position1 = 0, position2 = 0;
 double dernierePosition1 = 0, dernierePosition2 = 0;
 
 /*Moteur*/
+#define N_FILTRE 3
 unsigned long dernierTemps, maintenant, deltaTemps; //en ms
-double vitesse1 = 0, vitesse2 = 0;//en tours/seconde
+double vitesse1, vitesse2, vitesses1[N_FILTRE] = {0}, vitesses2[N_FILTRE] = {0};//en tours/seconde
+int i1 = 0, i2 = 0;
 const double tour = 1633;//408.25 pas par tour
 double pwmMax = 255;
 MCC m1(A0, A1, 9), m2(A2, A3, 10);
@@ -26,30 +28,22 @@ const double kp = 500;
 const double ki = 200;
 const double kd = 0;
 
-double v1_1 = 0; //plus recente
-double v2_1 = 0;
-double v3_1 = 0; //plus ancien
-
-double v1_2 = 0;
-double v2_2 = 0;
-double v3_2 = 0; 
-
 PID monPID1(&vitesse1, &commande1, &consigne1, kp, ki, kd, DIRECT);
 PID monPID2(&vitesse2, &commande2, &consigne2, kp, ki, kd, DIRECT);
 
 void getVitesse1() {
-  v3_1 = v2_1;
-  v2_1 = v1_1;
-  v1_1 = (position1 - dernierePosition1) / deltaTemps * 1000 / tour;
-  vitesse1 = (v1_1 + v2_1 + v3_1 ) / 3;
+  vitesse1 -= vitesses1[i1]/3;
+  vitesses1[i1] = (position1 - dernierePosition1) / deltaTemps * 1000 / tour;
+  vitesse1 += vitesses1[i1]/3;
+  if (++i1 == N_FILTRE) i1 = 0;
   dernierePosition1 = position1;
 }
 
 void getVitesse2() {
-  v3_2 = v2_2;
-  v2_2 = v1_2;
-  v1_2 = (position2 - dernierePosition2) / deltaTemps * 1000 / tour;
-  vitesse2 = (v1_2 + v2_2 + v3_2 ) / 3;
+  vitesse2 -= vitesses2[i2]/3;
+  vitesses2[i2] = (position2 - dernierePosition2) / deltaTemps * 1000 / tour;
+  vitesse2 += vitesses2[i2]/3;
+  if (++i2 == N_FILTRE) i2 = 0;
   dernierePosition2 = position2;
 }
 
