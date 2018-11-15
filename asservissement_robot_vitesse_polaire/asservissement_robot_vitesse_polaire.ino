@@ -10,7 +10,7 @@ double position1 = 0, position2 = 0;
 double dernierePosition1 = 0, dernierePosition2 = 0;
 
 /*Moteur*/
-#define N_FILTRE 3
+#define N_FILTRE 4
 unsigned long dernierTemps, maintenant, deltaTemps; //en ms
 double vitesse1, vitesse2, vitesses1[N_FILTRE] = {0}, vitesses2[N_FILTRE] = {0};//en tours/seconde
 double vitesseLineaire, vitesseOrientation;
@@ -25,8 +25,8 @@ double commandeLineaire, commandeOrientation; //la commande est le pwm envoyé s
 unsigned int echantillonnage = 1; //l'échantillonnage est l'intervalle de temps entre chaque calcul de la commande, exprimé en milliseconde
 
 //Réglage des coefficient des PID
-const double kp = 500;
-const double ki = 200;
+const double kp = 2000;
+const double ki = 400;
 const double kd = 0;
 
 PID monPID1(&vitesseLineaire, &commandeLineaire, &consigneLineaire, kp, ki, kd, DIRECT);
@@ -87,5 +87,5 @@ void loop() {
   m2.bouger((int)commandeLineaire + commandeOrientation);
 
   //Affichage liaison série
-  Serial.println(String(vitesseLineaire));
+  Serial.println(String(vitesseLineaire) + " 2");
 }

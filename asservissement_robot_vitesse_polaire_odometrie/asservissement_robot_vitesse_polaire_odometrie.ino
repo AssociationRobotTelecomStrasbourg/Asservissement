@@ -26,13 +26,13 @@ MCC m1(A0, A1, 9), m2(A2, A3, 10);
 double x = 0, y = 0, theta = 0, distanceLineaire, distanceOrientation;
 
 /*PID*/
-double consigneLineaire = 2, consigneOrientation = 0; //la consigne donne la vitesse voulue du moteur en tours/seconde
+double consigneLineaire = 0, consigneOrientation = 2; //la consigne donne la vitesse voulue du moteur en tours/seconde
 double commandeLineaire, commandeOrientation; //la commande est le pwm envoyé sur le moteur
 unsigned int echantillonnage = 5; //l'échantillonnage est l'intervalle de temps entre chaque calcul de la commande, exprimé en milliseconde
 
 //Réglage des coefficient des PID
-const double kp = 500;
-const double ki = 200;
+const double kp = 2000;
+const double ki = 1000;
 const double kd = 0;
 
 PID monPID1(&vitesseLineaire, &commandeLineaire, &consigneLineaire, kp, ki, kd, DIRECT);
@@ -98,5 +98,5 @@ void loop() {
   m2.bouger((int)commandeLineaire + commandeOrientation);
 
   //Affichage liaison série
-  Serial.println(String(theta));
+  Serial.println(String(vitesseLineaire));
 }
