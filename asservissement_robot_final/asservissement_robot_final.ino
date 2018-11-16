@@ -26,9 +26,8 @@ MCC moteurGauche(A0, A1, 9), moteurDroite(A2, A3, 10);
 double x = 0, y = 0, theta = 0, distanceLineaire, distanceOrientation;
 
 /*PID*/
-double consigneVitLineaire = 2, consigneVitRotation = 0;
-double consigneVitGauche = consigneVitLineaire - consigneVitRotation, consigneVitDroite = consigneVitLineaire + consigneVitRotation; //la consigne donne la vitesse voulue du moteur en tours/seconde
-double commandeVitGauche, commandeVitDroite; //la commande est le pwm envoyé sur le moteur
+double consigneVitLineaire = 0, consigneVitRotation = 1;
+double commandeVitLineaire, commandeVitRotation; //la commande est le pwm envoyé sur le moteur
 unsigned int echantillonnage = 1; //l'échantillonnage est l'intervalle de temps entre chaque calcul de la commande, exprimé en milliseconde
 
 //Réglage des coefficient des PID
@@ -36,8 +35,8 @@ const double kp = 900;
 const double ki = 400;
 const double kd = 0;
 
-PID vitesseGauchePID(&vitesseGauche, &commandeVitGauche, &consigneVitGauche, kp, ki, kd, DIRECT);
-PID vitesseDroitePID(&vitesseDroite, &commandeVitDroite, &consigneVitDroite, kp, ki, kd, DIRECT);
+PID vitesseLineairePID(&vitesseLineaire, &commandeVitLineaire, &consigneVitLineaire, kp, ki, kd, DIRECT);
+PID vitesseRotationPID(&vitesseRotation, &commandeVitRotation, &consigneVitRotation, kp, ki, kd, DIRECT);
 
 void getvitesseGauche() {
   vitesseGauche -= vitessesGauche[iGauche] / N_FILTRE;
@@ -63,13 +62,13 @@ void setup() {
   Serial.begin(115200);
 
   //Initialisation PID
-  vitesseGauchePID.SetSampleTime(echantillonnage);
-  vitesseGauchePID.SetOutputLimits(-pwmMax, pwmMax);
-  vitesseGauchePID.SetMode(AUTOMATIC);
+  vitesseLineairePID.SetSampleTime(echantillonnage);
+  vitesseLineairePID.SetOutputLimits(-pwmMax, pwmMax);
+  vitesseLineairePID.SetMode(AUTOMATIC);
 
-  vitesseDroitePID.SetSampleTime(echantillonnage);
-  vitesseDroitePID.SetOutputLimits(-pwmMax, pwmMax);
-  vitesseDroitePID.SetMode(AUTOMATIC);
+  vitesseRotationPID.SetSampleTime(echantillonnage);
+  vitesseRotationPID.SetOutputLimits(-pwmMax, pwmMax);
+  vitesseRotationPID.SetMode(AUTOMATIC);
 
   dernierTemps = millis() - echantillonnage;
 }
@@ -93,10 +92,10 @@ void loop() {
     y += sin(theta) * distanceLineaire;
     theta += distanceOrientation;
   }
-  vitesseGauchePID.Compute();
-  vitesseDroitePID.Compute();
-  moteurGauche.bouger((int)commandeVitGauche);
-  moteurDroite.bouger((int)commandeVitDroite);
+  vitesseLineairePID.Compute();
+  vitesseRotationPID.Compute();
+  moteurGauche.bouger((int)commandeVitLineaire - commandeVitRotation);
+  moteurDroite.bouger((int)commandeVitLineaire + commandeVitRotation);
 
   //Affichage liaison série
   Serial.print(vitesseGauche);
