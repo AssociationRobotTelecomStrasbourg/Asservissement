@@ -98,5 +98,7 @@ void loop() {
   m2.bouger((int)commandeLineaire + commandeOrientation);
 
   //Affichage liaison série
-  Serial.println(String(vitesseLineaire));
+  Serial.print(x);
+  Serial.print(" ");
+  Serial.println(y);
 }

@@ -19,7 +19,7 @@ double pwmMax = 255;
 MCC m1(A0, A1, 9), m2(A2, A3, 10);
 
 /*PID*/
-double consigne1 = -2, consigne2 = 2; //la consigne donne la vitesse voulue du moteur en tours/seconde
+double consigne1 = 0, consigne2 = 2; //la consigne donne la vitesse voulue du moteur en tours/seconde
 double commande1, commande2; //la commande est le pwm envoyé sur le moteur
 unsigned int echantillonnage = 1; //l'échantillonnage est l'intervalle de temps entre chaque calcul de la commande, exprimé en milliseconde
 
