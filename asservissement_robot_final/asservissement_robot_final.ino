@@ -13,30 +13,40 @@ double positionGauche = 0, positionDroite = 0;
 double dernierepositionGauche = 0, dernierepositionDroite = 0;
 
 /*Moteur*/
-#define N_FILTRE 4
+#define N_FILTRE 2
 unsigned long dernierTemps, maintenant, deltaTemps; //en ms
 double vitesseGauche, vitesseDroite, vitessesGauche[N_FILTRE] = {0}, vitessesDroite[N_FILTRE] = {0};//en tours/seconde
 double vitesseLineaire, vitesseRotation;
 int iGauche = 0, iDroite = 0;
 const double tour = 1633;//408.25 pas par tour
 double pwmMax = 255;
+double vitesseMax = 2;
 MCC moteurGauche(A0, A1, 9), moteurDroite(A2, A3, 10);
 
 /*Odométrie*/
-double x = 0, y = 0, theta = 0, distanceLineaire, distanceOrientation;
+double x = 0, y = 0, theta = 0, distanceLineaire, distanceRotation;
+double consignePosLineaire = 0, consignePosRotation = 0;
+double positionLineaire, positionRotation;
 
 /*PID*/
-double consigneVitLineaire = 0, consigneVitRotation = 1;
+double consigneVitLineaire = 2, consigneVitRotation = 0;
 double commandeVitLineaire, commandeVitRotation; //la commande est le pwm envoyé sur le moteur
-unsigned int echantillonnage = 1; //l'échantillonnage est l'intervalle de temps entre chaque calcul de la commande, exprimé en milliseconde
+unsigned int echantillonnage = 2; //l'échantillonnage est l'intervalle de temps entre chaque calcul de la commande, exprimé en milliseconde
 
 //Réglage des coefficient des PID
-const double kp = 900;
-const double ki = 400;
-const double kd = 0;
+const double kpVit = 900;
+const double kiVit = 0;
+const double kdVit = 0;
 
-PID vitesseLineairePID(&vitesseLineaire, &commandeVitLineaire, &consigneVitLineaire, kp, ki, kd, DIRECT);
-PID vitesseRotationPID(&vitesseRotation, &commandeVitRotation, &consigneVitRotation, kp, ki, kd, DIRECT);
+const double kpPos = 0;
+const double kiPos = 0;
+const double kdPos = 0;
+
+PID positionLineairePID(&positionLineaire, &consigneVitLineaire, &consignePosLineaire, kpPos, kiPos, kdPos, DIRECT);
+PID positionRotationPID(&vitesseRotation, &consigneVitRotation, &consignePosRotation, kpPos, kiPos, kdPos, DIRECT);
+
+PID vitesseLineairePID(&vitesseLineaire, &commandeVitLineaire, &consigneVitLineaire, kpVit, kiVit, kdVit, DIRECT);
+PID vitesseRotationPID(&vitesseRotation, &commandeVitRotation, &consigneVitRotation, kpVit, kiVit, kdVit, DIRECT);
 
 void getvitesseGauche() {
   vitesseGauche -= vitessesGauche[iGauche] / N_FILTRE;
@@ -62,6 +72,14 @@ void setup() {
   Serial.begin(115200);
 
   //Initialisation PID
+  positionLineairePID.SetSampleTime(echantillonnage);
+  positionLineairePID.SetOutputLimits(-vitesseMax, vitesseMax);
+  //positionLineairePID.SetMode(AUTOMATIC);
+
+  positionRotationPID.SetSampleTime(echantillonnage);
+  positionRotationPID.SetOutputLimits(-vitesseMax, vitesseMax);
+  //positionRotationPID.SetMode(AUTOMATIC);
+
   vitesseLineairePID.SetSampleTime(echantillonnage);
   vitesseLineairePID.SetOutputLimits(-pwmMax, pwmMax);
   vitesseLineairePID.SetMode(AUTOMATIC);
@@ -75,22 +93,31 @@ void setup() {
 
 
 void loop() {
-  //Calcul et application de la commande
+  //Calcul des consignes tout les temps echantillonage
   maintenant = millis();
   deltaTemps = maintenant - dernierTemps;
   if (deltaTemps >= echantillonnage) {
+    //Lecture des positions des moteurs
     positionGauche = encGauche.read();
     positionDroite = encDroite.read();
+
+    
+    
+    //Calculs des vitesses des moteurs
     getvitesseGauche();
     getvitesseDroite();
     vitesseLineaire = (vitesseGauche + vitesseDroite) / 2;
     vitesseRotation = (-vitesseGauche + vitesseDroite) / 2;
-    dernierTemps = maintenant;
+
+    //Odométrie
     distanceLineaire = vitesseLineaire * deltaTemps * COEFF_D;
-    distanceOrientation = vitesseRotation * deltaTemps * COEFF_R;
+    distanceRotation = vitesseRotation * deltaTemps * COEFF_R;
     x += cos(theta) * distanceLineaire;
     y += sin(theta) * distanceLineaire;
-    theta += distanceOrientation;
+    theta += distanceRotation;
+
+    
+    dernierTemps = maintenant;
   }
   vitesseLineairePID.Compute();
   vitesseRotationPID.Compute();
@@ -98,7 +125,5 @@ void loop() {
   moteurDroite.bouger((int)commandeVitLineaire + commandeVitRotation);
 
   //Affichage liaison série
-  Serial.print(vitesseGauche);
-  Serial.print(" 0 2 ");
-  Serial.println(vitesseDroite);
+  Serial.println(deltaTemps);
 }
