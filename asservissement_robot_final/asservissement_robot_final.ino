@@ -14,7 +14,7 @@ double positionGauche = 0, positionDroite = 0;
 double dernierepositionGauche = 0, dernierepositionDroite = 0;
 
 /*Moteur*/
-#define N_FILTRE 1
+#define N_FILTRE 6
 unsigned long dernierTemps, maintenant, deltaTemps; //en ms
 double vitesseGauche, vitesseDroite;//en tours/seconde
 Moyenne<double,N_FILTRE> vitesseGaucheMoyenne, vitesseDroiteMoyenne;
@@ -33,9 +33,9 @@ double consignePosLineaire, consignePosRotation;
 double positionLineaire = 0, positionRotation = 0;
 
 /*PID*/
-double consigneVitLineaire = 0, consigneVitRotation = 0;
+double consigneVitLineaire = 0.2, consigneVitRotation = 0;
 double commandeVitLineaire, commandeVitRotation; //la commande est le pwm envoyé sur le moteur
-unsigned int echantillonnage = 5; //l'échantillonnage est l'intervalle de temps entre chaque calcul de la commande, exprimé en milliseconde
+unsigned int echantillonnage = 2; //l'échantillonnage est l'intervalle de temps entre chaque calcul de la commande, exprimé en milliseconde
 
 //Réglage des coefficient des PID
 const double kpVit = 2000;
@@ -118,8 +118,8 @@ void loop() {
     vitesseRotationMoyenne = (-vitesseGaucheMoyenne.valeur() + vitesseDroiteMoyenne.valeur()) / 2;
 
     //Odométrie
-    distanceLineaire = vitesseLineaire * deltaTemps * COEFF_D;
-    distanceRotation = vitesseRotation * deltaTemps * COEFF_R;
+    distanceLineaire = vitesseLineaireMoyenne * deltaTemps * COEFF_D;
+    distanceRotation = vitesseRotationMoyenne * deltaTemps * COEFF_R;
     x += cos(theta) * distanceLineaire;
     y += sin(theta) * distanceLineaire;
     theta += distanceRotation;
@@ -135,7 +135,6 @@ void loop() {
   moteurDroite.bouger((int)commandeVitLineaire + commandeVitRotation);
 
   //Affichage liaison série
-  Serial.print(x);
-  Serial.print(" 0 ");
-  Serial.println(consigneX);
+//  Serial.print(x);
+//  Serial.println(" 0 102");
 }
