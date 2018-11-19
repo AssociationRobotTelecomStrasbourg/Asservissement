@@ -1,6 +1,7 @@
 #include <Encoder.h>
 #include <PID_v1.h>
 #include <MCC.h>
+#include "Moyenne.hpp"
 
 #define COEFF_D 0.02356 //en cm/tourDeRoue
 #define COEFF_R 0.00242 //en rad/tourDeRoue
@@ -13,11 +14,13 @@ double positionGauche = 0, positionDroite = 0;
 double dernierepositionGauche = 0, dernierepositionDroite = 0;
 
 /*Moteur*/
-#define N_FILTRE 4
+#define N_FILTRE 1
 unsigned long dernierTemps, maintenant, deltaTemps; //en ms
-double vitesseGauche, vitesseDroite, vitessesGauche[N_FILTRE] = {0}, vitessesDroite[N_FILTRE] = {0};//en tours/seconde
+double vitesseGauche, vitesseDroite;//en tours/seconde
+Moyenne<double,N_FILTRE> vitesseGaucheMoyenne, vitesseDroiteMoyenne;
 double vitesseLineaire, vitesseRotation;
-int iGauche = 0, iDroite = 0;
+double vitesseLineaireMoyenne, vitesseRotationMoyenne;
+int iGauche = 0, iDroite = 0; //indice de la vitesse actuelle
 const double tour = 1633;//408.25 pas par tour
 double pwmMax = 255;
 double vitesseMax = 2;
@@ -32,36 +35,30 @@ double positionLineaire = 0, positionRotation = 0;
 /*PID*/
 double consigneVitLineaire = 0, consigneVitRotation = 0;
 double commandeVitLineaire, commandeVitRotation; //la commande est le pwm envoyé sur le moteur
-unsigned int echantillonnage = 2; //l'échantillonnage est l'intervalle de temps entre chaque calcul de la commande, exprimé en milliseconde
+unsigned int echantillonnage = 5; //l'échantillonnage est l'intervalle de temps entre chaque calcul de la commande, exprimé en milliseconde
 
 //Réglage des coefficient des PID
 const double kpVit = 2000;
-const double kiVit = 1000;
+const double kiVit = 2000;
 const double kdVit = 0;
 
-const double kpPos = 1;
+const double kpPos = 0.01;
 const double kiPos = 0;
-const double kdPos = 0.01;
+const double kdPos = 0;
 
 PID positionLineairePID(&positionLineaire, &consigneVitLineaire, &consignePosLineaire, kpPos, kiPos, kdPos, DIRECT);
 PID positionRotationPID(&positionRotation, &consigneVitRotation, &consignePosRotation, kpPos, kiPos, kdPos, DIRECT);
 
-PID vitesseLineairePID(&vitesseLineaire, &commandeVitLineaire, &consigneVitLineaire, kpVit, kiVit, kdVit, DIRECT);
-PID vitesseRotationPID(&vitesseRotation, &commandeVitRotation, &consigneVitRotation, kpVit, kiVit, kdVit, DIRECT);
+PID vitesseLineairePID(&vitesseLineaireMoyenne, &commandeVitLineaire, &consigneVitLineaire, kpVit, kiVit, kdVit, DIRECT);
+PID vitesseRotationPID(&vitesseRotationMoyenne, &commandeVitRotation, &consigneVitRotation, kpVit, kiVit, kdVit, DIRECT);
 
-void getvitesseGauche() {
-  vitesseGauche -= vitessesGauche[iGauche] / N_FILTRE;
-  vitessesGauche[iGauche] = (positionGauche - dernierepositionGauche) / echantillonnage * 1000 / tour;
-  vitesseGauche += vitessesGauche[iGauche] / N_FILTRE;
-  if (++iGauche == N_FILTRE) iGauche = 0;
+void getVitesseGauche() {
+  vitesseGauche = (positionGauche - dernierepositionGauche) / echantillonnage * 1000 / tour;
   dernierepositionGauche = positionGauche;
 }
 
-void getvitesseDroite() {
-  vitesseDroite -= vitessesDroite[iDroite] / N_FILTRE;
-  vitessesDroite[iDroite] = (positionDroite - dernierepositionDroite) / echantillonnage * 1000 / tour;
-  vitesseDroite += vitessesDroite[iDroite] / N_FILTRE;
-  if (++iDroite == N_FILTRE) iDroite = 0;
+void getVitesseDroite() {
+  vitesseDroite = (positionDroite - dernierepositionDroite) / echantillonnage * 1000 / tour;
   dernierepositionDroite = positionDroite;
 }
 
@@ -109,10 +106,16 @@ void loop() {
 
 
     //Calculs des vitesses des moteurs
-    getvitesseGauche();
-    getvitesseDroite();
+    getVitesseGauche();
+    getVitesseDroite();
     vitesseLineaire = (vitesseGauche + vitesseDroite) / 2;
     vitesseRotation = (-vitesseGauche + vitesseDroite) / 2;
+
+    vitesseGaucheMoyenne.ajout(vitesseGauche);
+    vitesseDroiteMoyenne.ajout(vitesseDroite);
+    
+    vitesseLineaireMoyenne = (vitesseGaucheMoyenne.valeur() + vitesseDroiteMoyenne.valeur()) / 2;
+    vitesseRotationMoyenne = (-vitesseGaucheMoyenne.valeur() + vitesseDroiteMoyenne.valeur()) / 2;
 
     //Odométrie
     distanceLineaire = vitesseLineaire * deltaTemps * COEFF_D;
@@ -132,7 +135,7 @@ void loop() {
   moteurDroite.bouger((int)commandeVitLineaire + commandeVitRotation);
 
   //Affichage liaison série
-  Serial.print(positionLineaire);
+  Serial.print(x);
   Serial.print(" 0 ");
-  Serial.println(consignePosLineaire);
+  Serial.println(consigneX);
 }
