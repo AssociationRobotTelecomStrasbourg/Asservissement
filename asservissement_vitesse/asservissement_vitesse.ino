@@ -16,13 +16,13 @@ double pwmMax = 255;
 MCC m(A0, A1, 9);
 
 /*PID*/
-double consigne = 2; //la consigne donne la vitesse voulue du moteur en tours/seconde
+double consigne = 0.4; //la consigne donne la vitesse voulue du moteur en tours/seconde
 double commande; //la commande est le pwm envoyé sur le moteur
-int echantillonnage = 10; //l'échantillonnage est l'intervalle de temps entre chaque calcul de la commande, exprimé en milliseconde
+int echantillonnage = 2; //l'échantillonnage est l'intervalle de temps entre chaque calcul de la commande, exprimé en milliseconde
 
 //Réglage des coefficient des PID
-const double kp = 500;
-const double ki = 200;
+const double kp = 200;
+const double ki = 500;
 const double kd = 0;
 
 PID monPID(&vitesse, &commande, &consigne, kp, ki, kd, DIRECT);
@@ -35,9 +35,9 @@ void getVitesse() {
 void setup() {
   /*Changement fréquence des pwm des pins 9, 10*/
   TCCR1B = (TCCR1B & 0xf8) | 0x01;
-  
+
   /*Initialisation de la liaison série*/
-  Serial.begin(38400);
+  Serial.begin(115200);
 
   //Initialisation PID
   monPID.SetSampleTime(echantillonnage);
@@ -56,10 +56,13 @@ void loop() {
     position = monEnc.read();
     getVitesse();
     dernierTemps = maintenant;
+    //Affichage liaison série
+    Serial.print(consigne);
+    Serial.print(" 0 ");
+    Serial.println(vitesse);
+    
   }
   monPID.Compute();
   m.bouger((int)commande);
 
-  //Affichage liaison série
-  Serial.println(String(vitesse) + " 0 2");
 }
