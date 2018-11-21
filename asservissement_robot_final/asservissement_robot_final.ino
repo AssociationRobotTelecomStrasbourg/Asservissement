@@ -14,13 +14,13 @@ double dernierepositionGauche = 0, dernierepositionDroite = 0;
 
 /*Moteur*/
 #define N_FILTRE 6
-unsigned long dernierTemps, maintenant, deltaTemps, tempsInitial; //en ms
+unsigned long dernierTemps, maintenant, deltaTemps, tempsInitial, tempsTrajet = 1000; //en ms
 double vitesseGauche, vitesseDroite;//en tours/seconde
 double vitesseLineaire, vitesseRotation;
 int iGauche = 0, iDroite = 0; //indice de la vitesse actuelle
 const double tour = 1633;//408.25 pas par tour
 double pwmMax = 255;
-double vitesseMax = 2;
+double vitesseMax = 3;
 MCC moteurGauche(A0, A1, 9), moteurDroite(A2, A3, 10);
 bool lineaireRotation = true; //Mode de déplacement lineaire:true, rotation:false
 
@@ -29,6 +29,7 @@ double x = 0, y = 0, theta = 0, distanceLineaire, distanceRotation;
 double consigneX = 0, consigneY = 0, consigneTheta = 0;
 double consignePosLineaire, consignePosRotation;
 double positionLineaire = 0, positionRotation = 0;
+double positionLineaireInitial = 0, positionRotationInitial = 0;
 
 /*PID*/
 double consigneVitLineaire = 0, consigneVitRotation = 0;
@@ -40,9 +41,9 @@ const double kpVit = 2000;
 const double kiVit = 2000;
 const double kdVit = 0;
 
-const double kpPos = 0.05;
+const double kpPos = 1;
 const double kiPos = 0;
-const double kdPos = 0;
+const double kdPos = 0.01;
 
 PID positionLineairePID(&positionLineaire, &consigneVitLineaire, &consignePosLineaire, kpPos, kiPos, kdPos, DIRECT);
 PID positionRotationPID(&positionRotation, &consigneVitRotation, &consignePosRotation, kpPos, kiPos, kdPos, DIRECT);
@@ -97,11 +98,9 @@ void setup() {
 
   //consignePosLineaire = positionLineaire + (lineaireRotation ? sqrt(sq(x - consigneX) + sq(y - consigneY)) : 0) / COEFF_D / 1000 * tour;
   //consignePosRotation = positionRotation + moduloAngle(lineaireRotation ? atan2(consigneY - y, consigneX - x) - theta : consigneTheta - theta) / COEFF_R / 1000 * tour;
-  consignePosLineaire = positionLineaire + (lineaireRotation ? 200 : 0) / COEFF_D / 1000 * tour;
-  consignePosRotation = positionRotation + (lineaireRotation ? 0 : TWO_PI) / COEFF_R / 1000 * tour;
   dernierTemps = millis() - echantillonnage;
 
-  tempsInitial = millis() - 1000;
+  tempsInitial = millis();
 }
 
 
@@ -115,6 +114,13 @@ void loop() {
     positionDroite = encDroite.read();
     positionLineaire = (positionGauche + positionDroite) / 2;
     positionRotation = positionDroite - positionLineaire;
+
+    if (millis() - tempsInitial > tempsTrajet) {
+      positionLineaireInitial += (lineaireRotation ? 25 : 0) / COEFF_D / 1000 * tour;;
+      positionRotationInitial += (lineaireRotation ? 0 : HALF_PI) / COEFF_R / 1000 * tour;
+      lineaireRotation = !lineaireRotation;
+      tempsInitial = millis();
+    }
 
     //Calculs des vitesses des moteurs
     getVitesseGauche();
@@ -133,6 +139,10 @@ void loop() {
     dernierTemps = maintenant;
   }
 
+  consignePosLineaire = positionLineaireInitial + (lineaireRotation ? 25 * (millis() - tempsInitial) / tempsTrajet : 0) / COEFF_D / 1000 * tour;
+  consignePosRotation = positionRotationInitial + (lineaireRotation ? 0 : HALF_PI * (millis() - tempsInitial) / tempsTrajet) / COEFF_R / 1000 * tour;
+
+
   positionLineairePID.Compute();
   positionRotationPID.Compute();
   vitesseLineairePID.Compute();
@@ -141,7 +151,9 @@ void loop() {
   moteurDroite.bouger((int)commandeVitLineaire + commandeVitRotation);
 
   //Affichage liaison série
-  Serial.print(y);
-  Serial.print( "0 50 ");
-  Serial.println(x);
+  Serial.print(positionLineaire);
+  Serial.print(" ");
+  Serial.print(consignePosLineaire);
+  Serial.print(" ");
+  Serial.println(positionLineaireInitial);
 }
