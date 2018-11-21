@@ -18,7 +18,7 @@ double dernierepositionGauche = 0, dernierepositionDroite = 0;
 //Coefficient de proportion tension vitesse
 #define CG 0.97
 #define CD 1
-unsigned long dernierTemps, maintenant, deltaTemps, tempsInitial, tempsTrajet = 1000; //en ms
+unsigned long dernierTemps, maintenant, deltaTemps; //en ms
 double vitesseGauche, vitesseDroite; //en tourDeRoue/seconde
 double vitesseLineaire, vitesseRotation; //en tourDeRoue/seconde
 const double tour = 1633; //en pas/tourDeRoue
@@ -32,7 +32,6 @@ double x = 0, y = 0, theta = 0, distanceLineaire, distanceRotation;
 double consigneX = 0, consigneY = 0, consigneTheta = 0;
 double consignePosLineaire, consignePosRotation;
 double positionLineaire = 0, positionRotation = 0;
-double positionLineaireInitial = 0, positionRotationInitial = 0;
 
 /*PID*/
 double consigneVitLineaire = 0, consigneVitRotation = 0;
@@ -80,21 +79,23 @@ void getVitesseDroite() {
 void trajectoire() {
   //Mode de déplacement lineaire:true, rotation:false
   static bool lineaireRotation = true;
-  
-  //Changement de consigne de position lineaire ou rotation
-  if (millis() - tempsInitial > tempsTrajet) {
-    positionLineaireInitial += (lineaireRotation ? 25 : 0) / COEFF_D / 1000 * tour;;
-    positionRotationInitial += (lineaireRotation ? 0 : HALF_PI) / COEFF_R / 1000 * tour;
-    lineaireRotation = !lineaireRotation; //Changement de mode
-    tempsInitial = millis();
-  }
+  static double positionLineaireInitial = positionLineaire, positionRotationInitial = positionRotation;
+//  static unsigned long tempsInitial = millis(), tempsTrajet = 1000;
+//  
+//  //Changement de consigne de position lineaire ou rotation
+//  if (millis() - tempsInitial > tempsTrajet) {
+//    positionLineaireInitial += (lineaireRotation ? 25 : 0) / COEFF_D / 1000 * tour;;
+//    positionRotationInitial += (lineaireRotation ? 0 : HALF_PI) / COEFF_R / 1000 * tour;
+//    lineaireRotation = !lineaireRotation; //Changement de mode
+//    tempsInitial = millis();
+//  }
+//
+//  //Mise à jour des consigne de position
+//  consignePosLineaire = positionLineaireInitial + (lineaireRotation ? 25 * (millis() - tempsInitial) / tempsTrajet : 0) / COEFF_D / 1000 * tour;
+//  consignePosRotation = positionRotationInitial + (lineaireRotation ? 0 : HALF_PI * (millis() - tempsInitial) / tempsTrajet) / COEFF_R / 1000 * tour;
 
-  //Mise à jour des consigne de position
-  consignePosLineaire = positionLineaireInitial + (lineaireRotation ? 25 * (millis() - tempsInitial) / tempsTrajet : 0) / COEFF_D / 1000 * tour;
-  consignePosRotation = positionRotationInitial + (lineaireRotation ? 0 : HALF_PI * (millis() - tempsInitial) / tempsTrajet) / COEFF_R / 1000 * tour;
-
-  //consignePosLineaire = positionLineaire + (lineaireRotation ? sqrt(sq(x - consigneX) + sq(y - consigneY)) : 0) / COEFF_D / 1000 * tour;
-  //consignePosRotation = positionRotation + moduloAngle(lineaireRotation ? atan2(consigneY - y, consigneX - x) - theta : consigneTheta - theta) / COEFF_R / 1000 * tour;
+  consignePosLineaire = positionLineaireInitial + (lineaireRotation ? sqrt(sq(x - consigneX) + sq(y - consigneY)) : 0) / COEFF_D / 1000 * tour;
+  consignePosRotation = positionRotationInitial + moduloAngle(lineaireRotation ? atan2(consigneY - y, consigneX - x) - theta : consigneTheta - theta) / COEFF_R / 1000 * tour;
 }
 
 void odometrie() {
@@ -108,9 +109,7 @@ void odometrie() {
 void affichage() {
   Serial.print(positionLineaire);
   Serial.print(" ");
-  Serial.print(consignePosLineaire);
-  Serial.print(" ");
-  Serial.println(positionLineaireInitial);
+  Serial.println(consignePosLineaire);
 }
 
 void setup() {
@@ -138,7 +137,6 @@ void setup() {
   vitesseRotationPID.SetMode(AUTOMATIC);
 
   dernierTemps = millis() - echantillonnage;
-  tempsInitial = millis();
 }
 
 
@@ -161,7 +159,7 @@ void loop() {
     vitesseLineaire = (vitesseGauche + vitesseDroite) / 2;
     vitesseRotation = (-vitesseGauche + vitesseDroite) / 2;
 
-    //Génération des consignes de positions trajectoire
+    //Génération des consignes de positions trajectoire : modifications des consignes de position
     trajectoire();
 
     //Odométrie
