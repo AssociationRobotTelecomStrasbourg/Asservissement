@@ -23,13 +23,17 @@ double vitesseGauche, vitesseDroite; //en tourDeRoue/seconde
 double vitesseLineaire, vitesseRotation; //en tourDeRoue/seconde
 const double tour = 1633; //en pas/tourDeRoue
 double pwmMax = 255; //pwm max envoyé aux moteurs
-double vitesseMax = 3; //vitesse max en tourDeRoue/s
+double vitesseMax = 2; //vitesse max en tourDeRoue/s
 MCC moteurGauche(A0, A1, 9), moteurDroite(A2, A3, 10);
 
 
 /*Odométrie*/
+#define ERREUR_LIN 0.5 //erreur lineaire en cm de passage sur les points
+#define ERREUR_ROT 0.05 //erreur lineaire en cm de passage sur les points
+#define N_POINT 2 //nombre de points du parcours
 double x = 0, y = 0, theta = 0, distanceLineaire, distanceRotation;
-double consigneX = 0, consigneY = 0, consigneTheta = 0;
+double consigneX[N_POINT] = {100, 0}, consigneY[N_POINT] = {0, 0}, consigneTheta[N_POINT] = {0, 0};
+int pointActuel = 0;
 double consignePosLineaire, consignePosRotation;
 double positionLineaire = 0, positionRotation = 0;
 
@@ -44,7 +48,7 @@ const double kiVit = 2000;
 const double kdVit = 0;
 
 //Réglage des coefficient des PID position
-const double kpPos = 1;
+const double kpPos = 0.1;
 const double kiPos = 0;
 const double kdPos = 0.01;
 
@@ -79,7 +83,32 @@ void getVitesseDroite() {
 void trajectoire() {
   //Mode de déplacement lineaire:true, rotation:false
   static bool lineaireRotation = true;
-  static double positionLineaireInitial = positionLineaire, positionRotationInitial = positionRotation;
+  double erreurLineaire;
+  double erreurRotation;
+  
+  if (lineaireRotation) {
+    erreurLineaire = sqrt(sq(consigneX[pointActuel] - x) + sq(consigneY[pointActuel] - y));
+    erreurRotation = moduloAngle(atan2(consigneY[pointActuel] - y, consigneX[pointActuel] - x) - theta);
+    if (erreurLineaire < ERREUR_LIN) {
+      lineaireRotation = false;
+    }
+  }
+  else {
+    erreurLineaire = 0;
+    erreurRotation = moduloAngle(consigneTheta[pointActuel] - theta);
+    if (erreurRotation < ERREUR_ROT) {
+      pointActuel = (pointActuel + 1) % N_POINT;
+      lineaireRotation = true;
+    }
+  }
+  Serial.print(y);
+  Serial.print(" ");
+  Serial.println(x);
+
+  consignePosLineaire = erreurLineaire / COEFF_D / 1000 * tour;
+  consignePosRotation = erreurRotation / COEFF_R / 1000 * tour;
+
+//  static double positionLineaireInitial = positionLineaire, positionRotationInitial = positionRotation;
 //  static unsigned long tempsInitial = millis(), tempsTrajet = 1000;
 //  
 //  //Changement de consigne de position lineaire ou rotation
@@ -93,9 +122,6 @@ void trajectoire() {
 //  //Mise à jour des consigne de position
 //  consignePosLineaire = positionLineaireInitial + (lineaireRotation ? 25 * (millis() - tempsInitial) / tempsTrajet : 0) / COEFF_D / 1000 * tour;
 //  consignePosRotation = positionRotationInitial + (lineaireRotation ? 0 : HALF_PI * (millis() - tempsInitial) / tempsTrajet) / COEFF_R / 1000 * tour;
-
-  consignePosLineaire = positionLineaireInitial + (lineaireRotation ? sqrt(sq(x - consigneX) + sq(y - consigneY)) : 0) / COEFF_D / 1000 * tour;
-  consignePosRotation = positionRotationInitial + moduloAngle(lineaireRotation ? atan2(consigneY - y, consigneX - x) - theta : consigneTheta - theta) / COEFF_R / 1000 * tour;
 }
 
 void odometrie() {
@@ -107,9 +133,9 @@ void odometrie() {
 }
 
 void affichage() {
-  Serial.print(positionLineaire);
+  Serial.print(x);
   Serial.print(" ");
-  Serial.println(consignePosLineaire);
+  Serial.println(theta);
 }
 
 void setup() {
@@ -150,8 +176,10 @@ void loop() {
     positionDroite = encDroite.read();
 
     //Calcul des positions lineaire et rotation
-    positionLineaire = (positionGauche + positionDroite) / 2;
-    positionRotation = positionDroite - positionLineaire;
+    positionLineaire = 0;
+    positionRotation = 0;
+//    positionLineaire = (positionGauche + positionDroite) / 2;
+//    positionRotation = positionDroite - positionLineaire;
 
     //Calculs des vitesses des moteurs
     getVitesseGauche();
@@ -179,5 +207,5 @@ void loop() {
   moteurDroite.bouger((commandeVitLineaire + commandeVitRotation) * CD);
 
   //Affichage liaison série
-  affichage();
+//  affichage();
 }
