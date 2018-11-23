@@ -68,11 +68,13 @@ double consigneTheta[N_POINT] = {0, 0};
 
 
 /*PID*/
+#define ECHANT_MS 2 //l'échantillonnage est l'intervalle de temps entre chaque calcul de la commande, exprimé en milliseconde
+#define ECHANT_S ECHANT_MS / 1000
+
 double consignePosLineaire = 0, consignePosRotation = 0;
 double positionLineaire = 0, positionRotation = 0;
 double consigneVitLineaire = 0, consigneVitRotation = 0;
-double commandeVitLineaire, commandeVitRotation; //la commande est le pwm envoyé sur le moteur
-unsigned int echantillonnage = 2; //l'échantillonnage est l'intervalle de temps entre chaque calcul de la commande, exprimé en milliseconde
+double commandeVitLineaire = 0, commandeVitRotation = 0; //la commande est le pwm envoyé sur le moteur
 
 //Réglage des coefficient des PID vitesse
 const double kpVit = 2000;
@@ -103,12 +105,12 @@ double moduloAngle(double angle) {
 }
 
 void getvitesseGaucheMesure() {
-  vitesseGaucheMesure = (positionGauche - dernierepositionGauche) / echantillonnage * 1000 / PAS_TOUR;
+  vitesseGaucheMesure = (positionGauche - dernierepositionGauche) / ECHANT_S / PAS_TOUR;
   dernierepositionGauche = positionGauche;
 }
 
 void getvitesseDroiteMesure() {
-  vitesseDroiteMesure = (positionDroite - dernierepositionDroite) / echantillonnage * 1000 / PAS_TOUR;
+  vitesseDroiteMesure = (positionDroite - dernierepositionDroite) / ECHANT_S / PAS_TOUR;
   dernierepositionDroite = positionDroite;
 }
 
@@ -146,8 +148,8 @@ void trajectoire() {
   derniereDistanceRotation = distanceRotation;
   distanceLineaire = erreurLineaire;
   distanceRotation = erreurRotation;
-  vitesseLineaire = (distanceLineaire - derniereDistanceLineaire) / echantillonnage * 1000;
-  vitesseRotation = (distanceRotation - derniereDistanceRotation) / echantillonnage * 1000;
+  vitesseLineaire = (distanceLineaire - derniereDistanceLineaire) / ECHANT_S;
+  vitesseRotation = (distanceRotation - derniereDistanceRotation) / ECHANT_S;
 }
 
 double rampeVitesse(double distance, double vitesse, double acceleration, double deceleration) {
@@ -155,10 +157,10 @@ double rampeVitesse(double distance, double vitesse, double acceleration, double
   //http://cubot.fr/ateliers/asservissement/chap-5/
   double distanceFrein = sq(vitesse) / (2 * deceleration);
   if (distance < distanceFrein) {
-    return vitesse - deceleration * echantillonnage / 1000;
+    return vitesse - deceleration * ECHANT_S;
   }
   else if (vitesse < VIT_MAX) {
-    return vitesse + acceleration * echantillonnage / 1000;
+    return vitesse + acceleration * ECHANT_S;
   }
   else {
     return VIT_MAX;
@@ -166,9 +168,9 @@ double rampeVitesse(double distance, double vitesse, double acceleration, double
 }
 
 void odometrie() {
-  x += cos(theta) * vitesseLineaireMesure * echantillonnage / 1000 * COEFF_L;
-  y += sin(theta) * vitesseLineaireMesure * echantillonnage / 1000 * COEFF_L;
-  theta += vitesseRotationMesure * echantillonnage / 1000 * COEFF_R;
+  x += cos(theta) * vitesseLineaireMesure * ECHANT_S * COEFF_L;
+  y += sin(theta) * vitesseLineaireMesure * ECHANT_S * COEFF_L;
+  theta += vitesseRotationMesure * ECHANT_S * COEFF_R;
 }
 
 void affichage() {
@@ -187,23 +189,23 @@ void setup() {
   Serial.begin(115200);
 
   //Initialisation PID
-  positionLineairePID.SetSampleTime(echantillonnage);
+  positionLineairePID.SetSampleTime(ECHANT_MS);
   positionLineairePID.SetOutputLimits(-VIT_MAX, VIT_MAX);
   positionLineairePID.SetMode(AUTOMATIC);
 
-  positionRotationPID.SetSampleTime(echantillonnage);
+  positionRotationPID.SetSampleTime(ECHANT_MS);
   positionRotationPID.SetOutputLimits(-VIT_MAX, VIT_MAX);
   positionRotationPID.SetMode(AUTOMATIC);
 
-  vitesseLineairePID.SetSampleTime(echantillonnage);
+  vitesseLineairePID.SetSampleTime(ECHANT_MS);
   vitesseLineairePID.SetOutputLimits(-PWM_MAX, PWM_MAX);
   vitesseLineairePID.SetMode(AUTOMATIC);
 
-  vitesseRotationPID.SetSampleTime(echantillonnage);
+  vitesseRotationPID.SetSampleTime(ECHANT_MS);
   vitesseRotationPID.SetOutputLimits(-PWM_MAX, PWM_MAX);
   vitesseRotationPID.SetMode(AUTOMATIC);
 
-  dernierTemps = millis() - echantillonnage;
+  dernierTemps = millis() - ECHANT_MS;
 }
 
 
@@ -211,7 +213,7 @@ void loop() {
   //Calcul des consignes tout les temps echantillonage
   maintenant = millis();
   deltaTemps = maintenant - dernierTemps;
-  if (deltaTemps >= echantillonnage) {
+  if (deltaTemps >= ECHANT_MS) {
     //Calcul des PID position
     positionLineairePID.Compute();
     positionRotationPID.Compute();
