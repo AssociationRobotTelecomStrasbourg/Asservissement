@@ -1,9 +1,7 @@
 #include <Encoder.h>
 #include <PID_v1.h>
 #include <MCC.h>
-
-#define COEFF_L 23.56 //en cm/tourDeRoue
-#define COEFF_R 2.42 //en rad/tourDeRoue
+#include "conversion.h"
 
 /*Interruption*/
 Encoder encGauche(2, 4);
@@ -24,7 +22,6 @@ double dernierepositionGauche = 0, dernierepositionDroite = 0;
 #define ACCE_R 5 //accélération rotation en rad/s²
 #define DECE_R 5 //décélération rotation en rad/s²
 #define PWM_MAX 255 //pwm max envoyé aux moteurs
-#define PAS_TOUR 1633 //en pas/tourDeRoue
 unsigned long dernierTemps, maintenant, deltaTemps; //en ms
 double vitesseGaucheMesure, vitesseDroiteMesure; //en tourDeRoue/seconde
 double vitesseLineaireMesure, vitesseRotationMesure; //en tourDeRoue/seconde
@@ -105,12 +102,12 @@ double moduloAngle(double angle) {
 }
 
 void getvitesseGaucheMesure() {
-  vitesseGaucheMesure = (positionGauche - dernierepositionGauche) / ECHANT_S / PAS_TOUR;
+  vitesseGaucheMesure = pasToTour(positionGauche - dernierepositionGauche) / ECHANT_S;
   dernierepositionGauche = positionGauche;
 }
 
 void getvitesseDroiteMesure() {
-  vitesseDroiteMesure = (positionDroite - dernierepositionDroite) / ECHANT_S / PAS_TOUR;
+  vitesseDroiteMesure = pasToTour(positionDroite - dernierepositionDroite) / ECHANT_S;
   dernierepositionDroite = positionDroite;
 }
 
@@ -141,8 +138,8 @@ void trajectoire() {
     }
   }
 
-  consignePosLineaire = erreurLineaire / COEFF_L * PAS_TOUR;
-  consignePosRotation = erreurRotation / COEFF_R * PAS_TOUR;
+  consignePosLineaire = cmToPas(erreurLineaire);
+  consignePosRotation = radToPas(erreurRotation);
 
   derniereDistanceLineaire = distanceLineaire;
   derniereDistanceRotation = distanceRotation;
@@ -153,8 +150,6 @@ void trajectoire() {
 }
 
 double rampeVitesse(double distance, double vitesse, double acceleration, double deceleration) {
-  //TO DO
-  //http://cubot.fr/ateliers/asservissement/chap-5/
   double distanceFrein = sq(vitesse) / (2 * deceleration);
   if (distance < distanceFrein) {
     return vitesse - deceleration * ECHANT_S;
@@ -168,9 +163,9 @@ double rampeVitesse(double distance, double vitesse, double acceleration, double
 }
 
 void odometrie() {
-  x += cos(theta) * vitesseLineaireMesure * ECHANT_S * COEFF_L;
-  y += sin(theta) * vitesseLineaireMesure * ECHANT_S * COEFF_L;
-  theta += vitesseRotationMesure * ECHANT_S * COEFF_R;
+  x += tourToCm(cos(theta) * vitesseLineaireMesure * ECHANT_S);
+  y += tourToCm(sin(theta) * vitesseLineaireMesure * ECHANT_S);
+  theta += tourToRad(vitesseRotationMesure * ECHANT_S);
 }
 
 void affichage() {
@@ -219,8 +214,8 @@ void loop() {
     positionRotationPID.Compute();
 
     //Génération de la rampe de vitesse
-    consigneVitLineaire = rampeVitesse(distanceLineaire, vitesseLineaire, ACCE_L, DECE_L) / COEFF_L * PAS_TOUR;
-    consigneVitRotation = rampeVitesse(distanceRotation, vitesseRotation, ACCE_R, DECE_R) / COEFF_R * PAS_TOUR;
+    consigneVitLineaire = cmToPas(rampeVitesse(distanceLineaire, vitesseLineaire, ACCE_L, DECE_L));
+    consigneVitRotation = radToPas(rampeVitesse(distanceRotation, vitesseRotation, ACCE_R, DECE_R));
     
     //Calcul des PID vitesse
     vitesseLineairePID.Compute();
