@@ -25,23 +25,26 @@ double dernierepositionGauche = 0, dernierepositionDroite = 0;
 #define TOUR 1633 //en pas/tourDeRoue
 unsigned long dernierTemps, maintenant, deltaTemps; //en ms
 double vitesseGauche, vitesseDroite; //en tourDeRoue/seconde
-double vitesseLineaire, vitesseRotation; //en tourDeRoue/seconde
+double vitesseLineaireMesure, vitesseRotationMesure; //en tourDeRoue/seconde
 MCC moteurGauche(A0, A1, 9), moteurDroite(A2, A3, 10);
 
+/*Rampe de vitesse*/
+double distanceLineaire, derniereDistanceLineaire, vitesseLineaire;
+double distanceRotation, derniereDistanceRotation, vitesseRotation;
 
 /*Odométrie*/
 #define ANGLE_FIXE_LIN 1 //angle en mode linéaire fixé à telle distance des points en cm
 #define ERREUR_LIN 0.1 //erreur lineaire en cm de passage sur les points
 #define ERREUR_ROT 0.01 //erreur lineaire en cm de passage sur les points
-double x = 0, y = 0, theta = 0, distanceLineaire, distanceRotation;
+double x = 0, y = 0, theta = 0;
 
 /*Trajectoire*/
 /*Fonctionnement : va vers le point (consigneX[i],consigneY[i])
- * puis s'oriente selon consigneTheta[i]
- * i est pointActuel
- */
+  puis s'oriente selon consigneTheta[i]
+  i est pointActuel
+*/
 int pointActuel = 0;
- 
+
 /*Aller retour sans demi-tour*/
 #define N_POINT 2 //nombre de points du parcours
 double consigneX[N_POINT] = {100, 0};
@@ -62,7 +65,7 @@ double consigneTheta[N_POINT] = {0, 0};
 
 
 /*PID*/
-double consignePosLineaire, consignePosRotation;
+double consignePosLineaire = 0, consignePosRotation = 0;
 double positionLineaire = 0, positionRotation = 0;
 double consigneVitLineaire = 0, consigneVitRotation = 0;
 double commandeVitLineaire, commandeVitRotation; //la commande est le pwm envoyé sur le moteur
@@ -81,8 +84,8 @@ const double kdPos = 0.01;
 PID positionLineairePID(&positionLineaire, &consigneVitLineaire, &consignePosLineaire, kpPos, kiPos, kdPos, DIRECT);
 PID positionRotationPID(&positionRotation, &consigneVitRotation, &consignePosRotation, kpPos, kiPos, kdPos, DIRECT);
 
-PID vitesseLineairePID(&vitesseLineaire, &commandeVitLineaire, &consigneVitLineaire, kpVit, kiVit, kdVit, DIRECT);
-PID vitesseRotationPID(&vitesseRotation, &commandeVitRotation, &consigneVitRotation, kpVit, kiVit, kdVit, DIRECT);
+PID vitesseLineairePID(&vitesseLineaireMesure, &commandeVitLineaire, &consigneVitLineaire, kpVit, kiVit, kdVit, DIRECT);
+PID vitesseRotationPID(&vitesseRotationMesure, &commandeVitRotation, &consigneVitRotation, kpVit, kiVit, kdVit, DIRECT);
 
 //Restreint l'angle dans l'intervalle [-PI;PI[
 double moduloAngle(double angle) {
@@ -140,15 +143,15 @@ void trajectoire() {
 void rampeVitesse(double &distance, double &vitesse) {
   //TO DO
   //http://cubot.fr/ateliers/asservissement/chap-5/
-  
+  if (sq(vitesse) / (2 * ACC_FREIN)) {
+
+  }
 }
 
 void odometrie() {
-  distanceLineaire = vitesseLineaire * echantillonnage * COEFF_D;
-  distanceRotation = vitesseRotation * echantillonnage * COEFF_R;
-  x += cos(theta) * distanceLineaire;
-  y += sin(theta) * distanceLineaire;
-  theta += distanceRotation;
+  x += cos(theta) * vitesseLineaireMesure * echantillonnage * COEFF_D;
+  y += sin(theta) * vitesseLineaireMesure * echantillonnage * COEFF_D;
+  theta += vitesseRotationMesure * echantillonnage * COEFF_R;
 }
 
 void affichage() {
@@ -197,9 +200,9 @@ void loop() {
     positionRotationPID.Compute();
 
     //Génération de la rampe de vitesse
-    rampeVitesse(consignePosLineaire, consigneVitLineaire);
-    rampeVitesse(consignePosRotation, consigneVitRotation);
-    
+    rampeVitesse(consignePosLineaire, vitesseLineaireMesure);
+    rampeVitesse(consignePosRotation, vitesseRotationMesure);
+
     vitesseLineairePID.Compute();
     vitesseRotationPID.Compute();
 
@@ -211,22 +214,18 @@ void loop() {
     positionGauche = encGauche.read();
     positionDroite = encDroite.read();
 
-    //Calcul des positions lineaire et rotation
-    positionLineaire = 0;
-    positionRotation = 0;
-
     //Calculs des vitesses des moteurs
     getVitesseGauche();
     getVitesseDroite();
-    vitesseLineaire = (vitesseGauche + vitesseDroite) / 2;
-    vitesseRotation = (-vitesseGauche + vitesseDroite) / 2;
+    vitesseLineaireMesure = (vitesseGauche + vitesseDroite) / 2;
+    vitesseRotationMesure = (-vitesseGauche + vitesseDroite) / 2;
 
     //Génération des consignes de positions trajectoire : modifications des consignes de position
     trajectoire();
 
     //Odométrie
     odometrie();
-    
+
     //Affichage liaison série
     affichage();
 
