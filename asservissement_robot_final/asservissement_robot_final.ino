@@ -19,8 +19,8 @@ double dernierepositionGauche = 0, dernierepositionDroite = 0;
 #define CG 0.97
 #define CD 1
 #define VIT_MAX 2 //vitesse max en tourDeRoue/s
-#define ACC_MAX 100 //accélération en cm/s²
-#define ACC_FREIN 100 //décélération en cm/s²
+#define ACC_MAX 50 //accélération en cm/s²
+#define ACC_FREIN 50 //décélération en cm/s²
 #define PWM_MAX 255 //pwm max envoyé aux moteurs
 #define TOUR 1633 //en pas/tourDeRoue
 unsigned long dernierTemps, maintenant, deltaTemps; //en ms
@@ -33,14 +33,37 @@ MCC moteurGauche(A0, A1, 9), moteurDroite(A2, A3, 10);
 #define ANGLE_FIXE_LIN 1 //angle en mode linéaire fixé à telle distance des points en cm
 #define ERREUR_LIN 0.1 //erreur lineaire en cm de passage sur les points
 #define ERREUR_ROT 0.01 //erreur lineaire en cm de passage sur les points
-#define N_POINT 4 //nombre de points du parcours
 double x = 0, y = 0, theta = 0, distanceLineaire, distanceRotation;
-double consigneX[N_POINT] = {25, 25, 0, 0}, consigneY[N_POINT] = {0, 25, 25, 0}, consigneTheta[N_POINT] = {HALF_PI, PI, -HALF_PI, 0};
+
+/*Trajectoire*/
+/*Fonctionnement : va vers le point (consigneX[i],consigneY[i])
+ * puis s'oriente selon consigneTheta[i]
+ * i est pointActuel
+ */
 int pointActuel = 0;
-double consignePosLineaire, consignePosRotation;
-double positionLineaire = 0, positionRotation = 0;
+ 
+/*Aller retour sans demi-tour*/
+#define N_POINT 2 //nombre de points du parcours
+double consigneX[N_POINT] = {100, 0};
+double consigneY[N_POINT] = {0, 0};
+double consigneTheta[N_POINT] = {0, 0};
+
+/*Aller retour avec demi-tour*/
+//#define N_POINT 2 //nombre de points du parcours
+//double consigneX[N_POINT] = {100, 0};
+//double consigneY[N_POINT] = {0, 0};
+//double consigneTheta[N_POINT] = {PI, 0};
+
+/*Carre*/
+//#define N_POINT 4 //nombre de points du parcours
+//double consigneX[N_POINT] = {25, 25, 0, 0};
+//double consigneY[N_POINT] = {0, 25, 25, 0};
+//double consigneTheta[N_POINT] = {HALF_PI, PI, -HALF_PI, 0};
+
 
 /*PID*/
+double consignePosLineaire, consignePosRotation;
+double positionLineaire = 0, positionRotation = 0;
 double consigneVitLineaire = 0, consigneVitRotation = 0;
 double commandeVitLineaire, commandeVitRotation; //la commande est le pwm envoyé sur le moteur
 unsigned int echantillonnage = 2; //l'échantillonnage est l'intervalle de temps entre chaque calcul de la commande, exprimé en milliseconde
@@ -114,9 +137,10 @@ void trajectoire() {
   consignePosRotation = erreurRotation / COEFF_R / 1000 * TOUR;
 }
 
-void rampeVitesse() {
+void rampeVitesse(double &distance, double &vitesse) {
   //TO DO
-  //http://cubot.fr/ateliers/asservissement/chap-4/
+  //http://cubot.fr/ateliers/asservissement/chap-5/
+  
 }
 
 void odometrie() {
@@ -173,7 +197,8 @@ void loop() {
     positionRotationPID.Compute();
 
     //Génération de la rampe de vitesse
-    rampeVitesse();
+    rampeVitesse(consignePosLineaire, consigneVitLineaire);
+    rampeVitesse(consignePosRotation, consigneVitRotation);
     
     vitesseLineairePID.Compute();
     vitesseRotationPID.Compute();
