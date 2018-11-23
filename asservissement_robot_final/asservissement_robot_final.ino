@@ -2,7 +2,7 @@
 #include <PID_v1.h>
 #include <MCC.h>
 
-#define COEFF_D 0.02356 //en cm/tourDeRoue
+#define COEFF_L 0.02356 //en cm/tourDeRoue
 #define COEFF_R 0.00242 //en rad/tourDeRoue
 
 /*Interruption*/
@@ -18,24 +18,23 @@ double dernierepositionGauche = 0, dernierepositionDroite = 0;
 //Coefficient de proportion tension vitesse
 #define CG 0.97
 #define CD 1
-#define VIT_MAX 2 //vitesse max en tourDeRoue/s
-#define ACC_MAX 50 //accélération en cm/s²
-#define ACC_FREIN 50 //décélération en cm/s²
+#define VIT_MAX 2 //vitesse max en tourDeRoue/s (<2.5)
+#define ACCE_L 50 //accélération lineaire en cm/s²
+#define DECE_L 50 //décélération lineaire en cm/s²
+#define ACCE_R 5 //accélération rotation en rad/s²
+#define DECE_R 5 //décélération rotation en rad/s²
 #define PWM_MAX 255 //pwm max envoyé aux moteurs
 #define TOUR 1633 //en pas/tourDeRoue
 unsigned long dernierTemps, maintenant, deltaTemps; //en ms
-double vitesseGauche, vitesseDroite; //en tourDeRoue/seconde
+double vitesseGaucheMesure, vitesseDroiteMesure; //en tourDeRoue/seconde
 double vitesseLineaireMesure, vitesseRotationMesure; //en tourDeRoue/seconde
 MCC moteurGauche(A0, A1, 9), moteurDroite(A2, A3, 10);
 
 /*Rampe de vitesse*/
-double distanceLineaire, derniereDistanceLineaire, vitesseLineaire;
-double distanceRotation, derniereDistanceRotation, vitesseRotation;
+double distanceLineaire = 0, derniereDistanceLineaire = 0, vitesseLineaire; //en cm(/s)
+double distanceRotation = 0, derniereDistanceRotation  = 0, vitesseRotation; //en rad(/s)
 
 /*Odométrie*/
-#define ANGLE_FIXE_LIN 1 //angle en mode linéaire fixé à telle distance des points en cm
-#define ERREUR_LIN 0.1 //erreur lineaire en cm de passage sur les points
-#define ERREUR_ROT 0.01 //erreur lineaire en cm de passage sur les points
 double x = 0, y = 0, theta = 0;
 
 /*Trajectoire*/
@@ -43,7 +42,11 @@ double x = 0, y = 0, theta = 0;
   puis s'oriente selon consigneTheta[i]
   i est pointActuel
 */
-int pointActuel = 0;
+#define ANGLE_FIXE_LIN 1 //angle en mode linéaire fixé à telle distance des points en cm
+#define ERREUR_LIN 0.5 //erreur lineaire en cm de passage sur les points
+#define ERREUR_ROT 0.01 //erreur lineaire en cm de passage sur les points
+
+int pointActuel = 0; //indice du point à aller
 
 /*Aller retour sans demi-tour*/
 #define N_POINT 2 //nombre de points du parcours
@@ -99,13 +102,13 @@ double moduloAngle(double angle) {
   return tmp;
 }
 
-void getVitesseGauche() {
-  vitesseGauche = (positionGauche - dernierepositionGauche) / echantillonnage * 1000 / TOUR;
+void getvitesseGaucheMesure() {
+  vitesseGaucheMesure = (positionGauche - dernierepositionGauche) / echantillonnage * 1000 / TOUR;
   dernierepositionGauche = positionGauche;
 }
 
-void getVitesseDroite() {
-  vitesseDroite = (positionDroite - dernierepositionDroite) / echantillonnage * 1000 / TOUR;
+void getvitesseDroiteMesure() {
+  vitesseDroiteMesure = (positionDroite - dernierepositionDroite) / echantillonnage * 1000 / TOUR;
   dernierepositionDroite = positionDroite;
 }
 
@@ -136,21 +139,28 @@ void trajectoire() {
     }
   }
 
-  consignePosLineaire = erreurLineaire / COEFF_D / 1000 * TOUR;
+  consignePosLineaire = erreurLineaire / COEFF_L / 1000 * TOUR;
   consignePosRotation = erreurRotation / COEFF_R / 1000 * TOUR;
+
+  derniereDistanceLineaire = distanceLineaire;
+  derniereDistanceRotation = distanceRotation;
+  distanceLineaire = erreurLineaire;
+  distanceRotation = erreurRotation;
+  vitesseLineaire = (distanceLineaire - derniereDistanceLineaire) / echantillonnage * 1000;
+  vitesseRotation = (distanceRotation - derniereDistanceRotation) / echantillonnage * 1000;
 }
 
-void rampeVitesse(double &distance, double &vitesse) {
+void rampeVitesse(double distance, double vitesse, double accMax, double accFrein) {
   //TO DO
   //http://cubot.fr/ateliers/asservissement/chap-5/
-  if (sq(vitesse) / (2 * ACC_FREIN)) {
-
+  if (sq(vitesse) / (2 * accFrein)) {
+    
   }
 }
 
 void odometrie() {
-  x += cos(theta) * vitesseLineaireMesure * echantillonnage * COEFF_D;
-  y += sin(theta) * vitesseLineaireMesure * echantillonnage * COEFF_D;
+  x += cos(theta) * vitesseLineaireMesure * echantillonnage * COEFF_L;
+  y += sin(theta) * vitesseLineaireMesure * echantillonnage * COEFF_L;
   theta += vitesseRotationMesure * echantillonnage * COEFF_R;
 }
 
@@ -195,14 +205,15 @@ void loop() {
   maintenant = millis();
   deltaTemps = maintenant - dernierTemps;
   if (deltaTemps >= echantillonnage) {
-    //Calcul des PID
+    //Calcul des PID position
     positionLineairePID.Compute();
     positionRotationPID.Compute();
 
     //Génération de la rampe de vitesse
-    rampeVitesse(consignePosLineaire, vitesseLineaireMesure);
-    rampeVitesse(consignePosRotation, vitesseRotationMesure);
-
+    rampeVitesse(distanceLineaire, vitesseLineaire, ACCE_L, DECE_L);
+    rampeVitesse(distanceRotation, vitesseRotation, ACCE_R, DECE_R);
+    
+    //Calcul des PID vitesse
     vitesseLineairePID.Compute();
     vitesseRotationPID.Compute();
 
@@ -215,10 +226,10 @@ void loop() {
     positionDroite = encDroite.read();
 
     //Calculs des vitesses des moteurs
-    getVitesseGauche();
-    getVitesseDroite();
-    vitesseLineaireMesure = (vitesseGauche + vitesseDroite) / 2;
-    vitesseRotationMesure = (-vitesseGauche + vitesseDroite) / 2;
+    getvitesseGaucheMesure();
+    getvitesseDroiteMesure();
+    vitesseLineaireMesure = (vitesseGaucheMesure + vitesseDroiteMesure) / 2;
+    vitesseRotationMesure = (-vitesseGaucheMesure + vitesseDroiteMesure) / 2;
 
     //Génération des consignes de positions trajectoire : modifications des consignes de position
     trajectoire();
@@ -227,7 +238,7 @@ void loop() {
     odometrie();
 
     //Affichage liaison série
-    affichage();
+//    affichage();
 
     dernierTemps = maintenant;
   }
