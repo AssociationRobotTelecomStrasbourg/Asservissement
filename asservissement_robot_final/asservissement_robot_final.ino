@@ -11,7 +11,6 @@ Encoder encDroite(3, 5);
 double positionGauche = 0, positionDroite = 0;
 double dernierepositionGauche = 0, dernierepositionDroite = 0;
 
-
 /*Moteur*/
 //Coefficient de proportion tension vitesse
 #define CG 0.97
@@ -214,8 +213,8 @@ void loop() {
     positionRotationPID.Compute();
 
     //Génération de la rampe de vitesse
-    consigneVitLineaire = cmToPas(rampeVitesse(distanceLineaire, vitesseLineaire, ACCE_L, DECE_L));
-    consigneVitRotation = radToPas(rampeVitesse(distanceRotation, vitesseRotation, ACCE_R, DECE_R));
+//    consigneVitLineaire = cmToPas(rampeVitesse(distanceLineaire, vitesseLineaire, ACCE_L, DECE_L));
+//    consigneVitRotation = radToPas(rampeVitesse(distanceRotation, vitesseRotation, ACCE_R, DECE_R));
     
     //Calcul des PID vitesse
     vitesseLineairePID.Compute();
