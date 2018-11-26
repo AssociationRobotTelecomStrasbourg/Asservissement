@@ -15,8 +15,7 @@ double dernierepositionGauche = 0, dernierepositionDroite = 0;
 //Coefficient de proportion tension vitesse
 #define CG 0.97
 #define CD 1
-#define VIT_MAX 50 //vitesse max en cm/s Ne pas changer !!!
-#define VIT_MAX_PAS cmToPas(VIT_MAX) //vitesse max en pas/s
+#define VIT_MAX cmToPas(50) //vitesse max en pas/s
 #define ACCE_L 50 //accélération lineaire en cm/s²
 #define DECE_L 50 //décélération lineaire en cm/s²
 #define ACCE_R 5 //accélération rotation en rad/s²
@@ -74,14 +73,14 @@ double consigneVitLineaire = 0, consigneVitRotation = 0;
 double commandeVitLineaire = 0, commandeVitRotation = 0; //la commande est le pwm envoyé sur le moteur
 
 //Réglage des coefficient des PID vitesse
-const double kpVit = 2000;
-const double kiVit = 2000;
+const double kpVit = 0;
+const double kiVit = 0;
 const double kdVit = 0;
 
 //Réglage des coefficient des PID position
-const double kpPos = 0.1;
+const double kpPos = 0;
 const double kiPos = 0;
-const double kdPos = 0.01;
+const double kdPos = 0;
 
 PID positionLineairePID(&positionLineaire, &consigneVitLineaire, &consignePosLineaire, kpPos, kiPos, kdPos, DIRECT);
 PID positionRotationPID(&positionRotation, &consigneVitRotation, &consignePosRotation, kpPos, kiPos, kdPos, DIRECT);
@@ -185,11 +184,11 @@ void setup() {
 
   //Initialisation PID
   positionLineairePID.SetSampleTime(ECHANT_MS);
-  positionLineairePID.SetOutputLimits(-VIT_MAX_PAS, VIT_MAX_PAS);
+  positionLineairePID.SetOutputLimits(-VIT_MAX, VIT_MAX);
   positionLineairePID.SetMode(AUTOMATIC);
 
   positionRotationPID.SetSampleTime(ECHANT_MS);
-  positionRotationPID.SetOutputLimits(-VIT_MAX_PAS, VIT_MAX_PAS);
+  positionRotationPID.SetOutputLimits(-VIT_MAX, VIT_MAX);
   positionRotationPID.SetMode(AUTOMATIC);
 
   vitesseLineairePID.SetSampleTime(ECHANT_MS);
@@ -210,8 +209,8 @@ void loop() {
   deltaTemps = maintenant - dernierTemps;
   if (deltaTemps >= ECHANT_MS) {
     //Calcul des PID position
-    positionLineairePID.Compute();
-    positionRotationPID.Compute();
+//    positionLineairePID.Compute();
+//    positionRotationPID.Compute();
 
     //Génération de la rampe de vitesse
 //    consigneVitLineaire = cmToPas(rampeVitesse(distanceLineaire, vitesseLineaire, ACCE_L, DECE_L));
@@ -236,10 +235,10 @@ void loop() {
     vitesseRotationMesure = (-vitesseGaucheMesure + vitesseDroiteMesure) / 2;
 
     //Génération des consignes de positions trajectoire : modifications des consignes de position
-    trajectoire();
+//    trajectoire/();
 
     //Odométrie
-    odometrie();
+//    odomet/rie();
 
     //Affichage liaison série
 //    affichage();
