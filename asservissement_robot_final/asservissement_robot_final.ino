@@ -15,15 +15,16 @@ double dernierepositionGauche = 0, dernierepositionDroite = 0;
 //Coefficient de proportion tension vitesse
 #define CG 0.97
 #define CD 1
-#define VIT_MAX 2 //vitesse max en tourDeRoue/s (<2.5)
+#define VIT_MAX 50 //vitesse max en cm/s Ne pas changer !!!
+#define VIT_MAX_PAS cmToPas(VIT_MAX) //vitesse max en pas/s
 #define ACCE_L 50 //accélération lineaire en cm/s²
 #define DECE_L 50 //décélération lineaire en cm/s²
 #define ACCE_R 5 //accélération rotation en rad/s²
 #define DECE_R 5 //décélération rotation en rad/s²
 #define PWM_MAX 255 //pwm max envoyé aux moteurs
 unsigned long dernierTemps, maintenant, deltaTemps; //en ms
-double vitesseGaucheMesure, vitesseDroiteMesure; //en tourDeRoue/seconde
-double vitesseLineaireMesure, vitesseRotationMesure; //en tourDeRoue/seconde
+double vitesseGaucheMesure, vitesseDroiteMesure; //en pas/seconde
+double vitesseLineaireMesure, vitesseRotationMesure; //en pas/seconde
 MCC moteurGauche(A0, A1, 9), moteurDroite(A2, A3, 10);
 
 /*Rampe de vitesse*/
@@ -65,7 +66,7 @@ double consigneTheta[N_POINT] = {0, 0};
 
 /*PID*/
 #define ECHANT_MS 2 //l'échantillonnage est l'intervalle de temps entre chaque calcul de la commande, exprimé en milliseconde
-#define ECHANT_S ECHANT_MS / 1000
+#define ECHANT_S (ECHANT_MS / 1000)
 
 double consignePosLineaire = 0, consignePosRotation = 0;
 double positionLineaire = 0, positionRotation = 0;
@@ -101,12 +102,12 @@ double moduloAngle(double angle) {
 }
 
 void getvitesseGaucheMesure() {
-  vitesseGaucheMesure = pasToTour(positionGauche - dernierepositionGauche) / ECHANT_S;
+  vitesseGaucheMesure = (positionGauche - dernierepositionGauche) / ECHANT_S;
   dernierepositionGauche = positionGauche;
 }
 
 void getvitesseDroiteMesure() {
-  vitesseDroiteMesure = pasToTour(positionDroite - dernierepositionDroite) / ECHANT_S;
+  vitesseDroiteMesure = (positionDroite - dernierepositionDroite) / ECHANT_S;
   dernierepositionDroite = positionDroite;
 }
 
@@ -162,9 +163,9 @@ double rampeVitesse(double distance, double vitesse, double acceleration, double
 }
 
 void odometrie() {
-  x += tourToCm(cos(theta) * vitesseLineaireMesure * ECHANT_S);
-  y += tourToCm(sin(theta) * vitesseLineaireMesure * ECHANT_S);
-  theta += tourToRad(vitesseRotationMesure * ECHANT_S);
+  x += pasToCm(cos(theta) * vitesseLineaireMesure * ECHANT_S);
+  y += pasToCm(sin(theta) * vitesseLineaireMesure * ECHANT_S);
+  theta += pasToRad(vitesseRotationMesure * ECHANT_S);
 }
 
 void affichage() {
@@ -184,11 +185,11 @@ void setup() {
 
   //Initialisation PID
   positionLineairePID.SetSampleTime(ECHANT_MS);
-  positionLineairePID.SetOutputLimits(-VIT_MAX, VIT_MAX);
+  positionLineairePID.SetOutputLimits(-VIT_MAX_PAS, VIT_MAX_PAS);
   positionLineairePID.SetMode(AUTOMATIC);
 
   positionRotationPID.SetSampleTime(ECHANT_MS);
-  positionRotationPID.SetOutputLimits(-VIT_MAX, VIT_MAX);
+  positionRotationPID.SetOutputLimits(-VIT_MAX_PAS, VIT_MAX_PAS);
   positionRotationPID.SetMode(AUTOMATIC);
 
   vitesseLineairePID.SetSampleTime(ECHANT_MS);
