@@ -16,19 +16,13 @@ double dernierepositionGauche = 0, dernierepositionDroite = 0;
 #define CG 0.97
 #define CD 1
 #define VIT_MAX cmToPas(50) //vitesse max en pas/s
-#define ACCE_L 50 //accélération lineaire en cm/s²
-#define DECE_L 50 //décélération lineaire en cm/s²
-#define ACCE_R 5 //accélération rotation en rad/s²
-#define DECE_R 5 //décélération rotation en rad/s²
+#define ACCE cmToPas(50) //accélération lineaire en cm/s²
+#define DECE cmToPas(50) //décélération rotation en rad/s²
 #define PWM_MAX 255 //pwm max envoyé aux moteurs
 unsigned long dernierTemps, maintenant, deltaTemps; //en ms
 double vitesseGaucheMesure, vitesseDroiteMesure; //en pas/seconde
 double vitesseLineaireMesure, vitesseRotationMesure; //en pas/seconde
 MCC moteurGauche(A0, A1, 9), moteurDroite(A2, A3, 10);
-
-/*Rampe de vitesse*/
-double distanceLineaire = 0, derniereDistanceLineaire = 0, vitesseLineaire; //en cm(/s)
-double distanceRotation = 0, derniereDistanceRotation  = 0, vitesseRotation; //en rad(/s)
 
 /*Odométrie*/
 double x = 0, y = 0, theta = 0;
@@ -39,8 +33,8 @@ double x = 0, y = 0, theta = 0;
   i est pointActuel
 */
 #define ANGLE_FIXE_LIN 1 //angle en mode linéaire fixé à telle distance des points en cm
-#define ERREUR_LIN 0.5 //erreur lineaire en cm de passage sur les points
-#define ERREUR_ROT 0.01 //erreur lineaire en cm de passage sur les points
+#define ERREUR_LIN 1 //erreur lineaire en cm de passage sur les points
+#define ERREUR_ROT 0.05 //erreur lineaire en cm de passage sur les points
 
 int pointActuel = 0; //indice du point à aller
 
@@ -64,21 +58,21 @@ double consigneTheta[N_POINT] = {0, 0};
 
 
 /*PID*/
-#define ECHANT_MS 2 //l'échantillonnage est l'intervalle de temps entre chaque calcul de la commande, exprimé en milliseconde
-#define ECHANT_S (ECHANT_MS / 1000)
+#define ECHANT_MS 3//l'échantillonnage est l'intervalle de temps entre chaque calcul de la commande, exprimé en milliseconde
+#define ECHANT_S 0.003
 
-double consignePosLineaire = 0, consignePosRotation = 0;
-double positionLineaire = 0, positionRotation = 0;
-double consigneVitLineaire = 0, consigneVitRotation = 0;
+double consignePosLineaire = 0, consignePosRotation = 0; //en pas
+double positionLineaire = 0, positionRotation = 0; //en pas
+double consigneVitLineaire = 0, consigneVitRotation = 0; //en pas/s
 double commandeVitLineaire = 0, commandeVitRotation = 0; //la commande est le pwm envoyé sur le moteur
 
 //Réglage des coefficient des PID vitesse
-const double kpVit = 0;
-const double kiVit = 0;
+const double kpVit = 0.7;
+const double kiVit = 0.5;
 const double kdVit = 0;
 
 //Réglage des coefficient des PID position
-const double kpPos = 0;
+const double kpPos = 10;
 const double kiPos = 0;
 const double kdPos = 0;
 
@@ -98,6 +92,12 @@ double moduloAngle(double angle) {
     tmp += TWO_PI;
   }
   return tmp;
+}
+
+void affichage() {
+  Serial.print(consigneX[pointActuel]);
+  Serial.print(" 0 ");
+  Serial.println(x);
 }
 
 void getvitesseGaucheMesure() {
@@ -139,40 +139,19 @@ void trajectoire() {
 
   consignePosLineaire = cmToPas(erreurLineaire);
   consignePosRotation = radToPas(erreurRotation);
-
-  derniereDistanceLineaire = distanceLineaire;
-  derniereDistanceRotation = distanceRotation;
-  distanceLineaire = erreurLineaire;
-  distanceRotation = erreurRotation;
-  vitesseLineaire = (distanceLineaire - derniereDistanceLineaire) / ECHANT_S;
-  vitesseRotation = (distanceRotation - derniereDistanceRotation) / ECHANT_S;
 }
 
-double rampeVitesse(double distance, double vitesse, double acceleration, double deceleration) {
-  double distanceFrein = sq(vitesse) / (2 * deceleration);
-  if (distance < distanceFrein) {
-    return vitesse - deceleration * ECHANT_S;
-  }
-  else if (vitesse < VIT_MAX) {
-    return vitesse + acceleration * ECHANT_S;
-  }
-  else {
-    return VIT_MAX;
-  }
+void rampeVitesse(double &vitesse) {
+  static double derniereVitesse = 0;
+  double acceleration = (vitesse - derniereVitesse) / ECHANT_S;
+
+//  if (acceleration > ACCE || acceleration)
 }
 
 void odometrie() {
   x += pasToCm(cos(theta) * vitesseLineaireMesure * ECHANT_S);
   y += pasToCm(sin(theta) * vitesseLineaireMesure * ECHANT_S);
   theta += pasToRad(vitesseRotationMesure * ECHANT_S);
-}
-
-void affichage() {
-  Serial.print(x);
-  Serial.print(" ");
-  Serial.print(theta);
-  Serial.print(" ");
-  Serial.println(y);
 }
 
 void setup() {
@@ -209,13 +188,13 @@ void loop() {
   deltaTemps = maintenant - dernierTemps;
   if (deltaTemps >= ECHANT_MS) {
     //Calcul des PID position
-//    positionLineairePID.Compute();
-//    positionRotationPID.Compute();
+    positionLineairePID.Compute();
+    positionRotationPID.Compute();
 
     //Génération de la rampe de vitesse
-//    consigneVitLineaire = cmToPas(rampeVitesse(distanceLineaire, vitesseLineaire, ACCE_L, DECE_L));
-//    consigneVitRotation = radToPas(rampeVitesse(distanceRotation, vitesseRotation, ACCE_R, DECE_R));
-    
+    rampeVitesse(consigneVitLineaire);
+    rampeVitesse(consigneVitRotation);
+
     //Calcul des PID vitesse
     vitesseLineairePID.Compute();
     vitesseRotationPID.Compute();
@@ -228,20 +207,23 @@ void loop() {
     positionGauche = encGauche.read();
     positionDroite = encDroite.read();
 
+    //    positionLineaire = (positionGauche + positionDroite) / 2;
+    //    positionRotation = positionLineaire - positionGauche;
+
     //Calculs des vitesses des moteurs
     getvitesseGaucheMesure();
     getvitesseDroiteMesure();
     vitesseLineaireMesure = (vitesseGaucheMesure + vitesseDroiteMesure) / 2;
-    vitesseRotationMesure = (-vitesseGaucheMesure + vitesseDroiteMesure) / 2;
+    vitesseRotationMesure = vitesseLineaireMesure - vitesseGaucheMesure;
 
     //Génération des consignes de positions trajectoire : modifications des consignes de position
-//    trajectoire/();
+    trajectoire();
 
     //Odométrie
-//    odomet/rie();
+    odometrie();
 
     //Affichage liaison série
-//    affichage();
+    affichage();
 
     dernierTemps = maintenant;
   }
