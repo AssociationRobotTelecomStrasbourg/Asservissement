@@ -24,6 +24,7 @@ double vitesseLineaireMesure, vitesseRotationMesure; //en pas/seconde
 MCC moteurGauche(A0, A1, 9), moteurDroite(A2, A3, 10);
 
 /*Odométrie*/
+#define CORR_O 1 //correcteur odométrie différence entre les rayons des roues
 double x = 0, y = 0, theta = 0;
 
 /*Trajectoire*/
@@ -210,7 +211,7 @@ void loop() {
 
     //Lecture des positions des moteurs
     positionGauche = encGauche.read();
-    positionDroite = encDroite.read();
+    positionDroite = encDroite.read() * CORR_O;
 
     //    positionLineaire = (positionGauche + positionDroite) / 2;
     //    positionRotation = positionLineaire - positionGauche;
