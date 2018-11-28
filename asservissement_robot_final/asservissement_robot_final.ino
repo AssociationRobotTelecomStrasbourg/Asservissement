@@ -17,7 +17,6 @@ double dernierepositionGauche = 0, dernierepositionDroite = 0;
 #define CD 1
 #define VIT_MAX cmToPas(50) //vitesse max en pas/s
 #define ACCE cmToPas(50) //accélération lineaire en cm/s²
-#define DECE cmToPas(50) //décélération rotation en rad/s²
 #define PWM_MAX 255 //pwm max envoyé aux moteurs
 unsigned long dernierTemps, maintenant, deltaTemps; //en ms
 double vitesseGaucheMesure, vitesseDroiteMesure; //en pas/seconde
@@ -64,6 +63,7 @@ double consigneTheta[N_POINT] = {0, 0};
 double consignePosLineaire = 0, consignePosRotation = 0; //en pas
 double positionLineaire = 0, positionRotation = 0; //en pas
 double consigneVitLineaire = 0, consigneVitRotation = 0; //en pas/s
+double derrniereConsigneVitLineaire = 0, derrniereConsigneVitRotation = 0; //en pas/s
 double commandeVitLineaire = 0, commandeVitRotation = 0; //la commande est le pwm envoyé sur le moteur
 
 //Réglage des coefficient des PID vitesse
@@ -141,11 +141,16 @@ void trajectoire() {
   consignePosRotation = radToPas(erreurRotation);
 }
 
-void rampeVitesse(double &vitesse) {
-  static double derniereVitesse = 0;
+//Renvoie la vitesse corrigée
+void rampeVitesse(double &vitesse, double &derniereVitesse) {
   double acceleration = (vitesse - derniereVitesse) / ECHANT_S;
-
-//  if (acceleration > ACCE || acceleration)
+  if (acceleration > ACCE) {
+    vitesse = derniereVitesse + ACCE * ECHANT_S;
+  }
+  else if (acceleration < -ACCE) {
+    vitesse = derniereVitesse - ACCE * ECHANT_S;
+  }
+  derniereVitesse = vitesse;
 }
 
 void odometrie() {
@@ -192,8 +197,8 @@ void loop() {
     positionRotationPID.Compute();
 
     //Génération de la rampe de vitesse
-    rampeVitesse(consigneVitLineaire);
-    rampeVitesse(consigneVitRotation);
+    rampeVitesse(consigneVitLineaire, derrniereConsigneVitLineaire);
+    rampeVitesse(consigneVitRotation, derrniereConsigneVitRotation);
 
     //Calcul des PID vitesse
     vitesseLineairePID.Compute();
