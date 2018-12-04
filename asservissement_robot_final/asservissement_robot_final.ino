@@ -69,7 +69,7 @@ double derrniereConsigneVitLineaire = 0, derrniereConsigneVitRotation = 0; //en 
 double commandeVitLineaire = 0, commandeVitRotation = 0; //la commande est le pwm envoyé sur le moteur
 
 //Réglage des coefficient des PID vitesse
-const double kpVit = 1;
+const double kpVit = 0.7;
 const double kiVit = 0.5;
 const double kdVit = 0;
 
